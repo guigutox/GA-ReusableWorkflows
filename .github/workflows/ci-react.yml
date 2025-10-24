@@ -1,0 +1,53 @@
+name: Reusable Build Node Workflow
+
+on:
+  workflow_call:
+    inputs:
+      node_version:
+        required: false
+        type: string
+        default: "22"
+    outputs:
+      artifact_name:
+        description: "The name of the artifact zip file"
+        value: ${{ jobs.build.outputs.artifact_name }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      artifact_name: ${{ steps.generate-artifact.outputs.artifact_name }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ inputs.node_version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          CI: true
+
+      - name: Build React App
+        run: npm run build
+
+      - name: Compress dist folder
+        run: |
+          ARTIFACT_NAME="dist-$(date +'%Y%m%d-%H%M%S').zip"
+          zip -r $ARTIFACT_NAME dist
+          echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
+
+      - name: Save artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ github.workspace }}/dist-*.zip
+          retention-days: 7
+
+      - name: Generate output for artifact name
+        id: generate-artifact
+        run: echo "artifact_name=${{ env.ARTIFACT_NAME }}" >> $GITHUB_OUTPUT
