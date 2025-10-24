@@ -7,6 +7,10 @@ on:
         required: false
         type: string
         default: "22"
+      build_folder:
+        required: false
+        type: string
+        default: "build"
     outputs:
       artifact_name:
         description: "The name of the artifact zip file"
@@ -35,19 +39,23 @@ jobs:
       - name: Build React App
         run: npm run build
 
-      - name: Compress dist folder
+      - name: Compress ${{ inputs.build_folder}} folder
         run: |
-          ARTIFACT_NAME="dist-$(date +'%Y%m%d-%H%M%S').zip"
-          zip -r $ARTIFACT_NAME dist
+          ARTIFACT_NAME="${{ inputs.build_folder}}-$(date +'%Y%m%d-%H%M%S').zip"
+          zip -r $ARTIFACT_NAME ${{ inputs.build_folder}}
           echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
 
       - name: Save artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ github.workspace }}/dist-*.zip
+          path: ${{ github.workspace }}/${{ inputs.build_folder }}-*.zip
           retention-days: 7
 
       - name: Generate output for artifact name
         id: generate-artifact
         run: echo "artifact_name=${{ env.ARTIFACT_NAME }}" >> $GITHUB_OUTPUT
+      
+      - name: Teste para adicionar step
+        run: ls 
+        
