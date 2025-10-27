@@ -1,0 +1,25 @@
+name: Rails Security Scan
+
+on: 
+  workflow_call:
+    inputs:
+      ruby-version-file:
+        description: 'Path to Ruby version file'
+        required: false
+        type: string
+        default: '.ruby-version'
+
+jobs:
+  scan_ruby:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with: 
+          ruby-version-file: ${{ inputs.ruby-version-file }}
+          bundler-cache: true
+      
+      - name: Scan for common Rails security vulnerabilities using static analysis
+        run: bin/brakeman --no-pager
