@@ -1,48 +1,13 @@
-name: Reusable Rails CI
+name: CI
 
 on:
-  workflow_call:
-    inputs:
-      ruby-version-file:
-        description: 'Path to Ruby version file'
-        required: false
-        type: string
-        default: '.ruby-version'
-      rails-env:
-        description: 'Rails environment for tests'
-        required: false
-        type: string
-        default: 'test'
-      enable-redis:
-        description: 'Enable Redis service'
-        required: false
-        type: boolean
-        default: false
-      skip-brakeman:
-        description: 'Skip Brakeman security scan'
-        required: false
-        type: boolean
-        default: false
-      skip-importmap:
-        description: 'Skip Importmap audit'
-        required: false
-        type: boolean
-        default: false
-      skip-rubocop:
-        description: 'Skip RuboCop linting'
-        required: false
-        type: boolean
-        default: false
-      test-command:
-        description: 'Custom test command'
-        required: false
-        type: string
-        default: 'bin/rails db:test:prepare test test:system'
+  pull_request:
+  push:
+    branches: [ main ]
 
 jobs:
   scan_ruby:
     runs-on: ubuntu-latest
-    if: ${{ !inputs.skip-brakeman }}
 
     steps:
       - name: Checkout code
@@ -51,7 +16,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version-file: ${{ inputs.ruby-version-file }}
+          ruby-version: .ruby-version
           bundler-cache: true
 
       - name: Scan for common Rails security vulnerabilities using static analysis
@@ -59,7 +24,6 @@ jobs:
 
   scan_js:
     runs-on: ubuntu-latest
-    if: ${{ !inputs.skip-importmap }}
 
     steps:
       - name: Checkout code
@@ -68,7 +32,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version-file: ${{ inputs.ruby-version-file }}
+          ruby-version: .ruby-version
           bundler-cache: true
 
       - name: Scan for security vulnerabilities in JavaScript dependencies
@@ -76,8 +40,6 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
-    if: ${{ !inputs.skip-rubocop }}
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -85,7 +47,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version-file: ${{ inputs.ruby-version-file }}
+          ruby-version: .ruby-version
           bundler-cache: true
 
       - name: Lint code for consistent style
@@ -94,15 +56,12 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    services:
-      redis:
-        image: redis
-        ports:
-          - 6379:6379
-        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
-        # Only start Redis if enabled
-        if: ${{ inputs.enable-redis }}
-
+    # services:
+    #  redis:
+    #    image: redis
+    #    ports:
+    #      - 6379:6379
+    #    options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - name: Install packages
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y build-essential git libyaml-dev pkg-config google-chrome-stable
@@ -113,14 +72,14 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version-file: ${{ inputs.ruby-version-file }}
+          ruby-version: .ruby-version
           bundler-cache: true
 
       - name: Run tests
         env:
-          RAILS_ENV: ${{ inputs.rails-env }}
-          REDIS_URL: ${{ inputs.enable-redis && 'redis://localhost:6379/0' || '' }}
-        run: ${{ inputs.test-command }}
+          RAILS_ENV: test
+          # REDIS_URL: redis://localhost:6379/0
+        run: bin/rails db:test:prepare test test:system
 
       - name: Keep screenshots from failed system tests
         uses: actions/upload-artifact@v4
